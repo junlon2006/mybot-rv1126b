@@ -17,6 +17,8 @@
 | `--wifi-interface IF` | `RV1126B_WIFI_INTERFACE` | 空，自动选择 nl80211 无线接口 |
 | `--wifi-provision` | 无 | 启动时强制进入 AP 配网；不能与 UI 演示或禁用配网同时使用 |
 | `--no-wifi-provisioning` | 无 | 仅监测既有网络，禁用自动/手动 AP 配网 |
+| `--time-sync-timeout SECONDS` | `RV1126B_TIME_SYNC_TIMEOUT` | 30；联网且退出 AP 后等待时间合理性的秒数，范围 1–300 |
+| `--time-sync-helper PATH` | `RV1126B_TIME_SYNC_HELPER` | 空；默认只等待 OS 校时，显式指定绝对可执行路径才允许启动前台 helper |
 | `--input-device PATH` | `RV1126B_INPUT_DEVICE` | `auto`；可选 `none`、`stdin` 或 evdev 路径 |
 | `--touch-device PATH` | `RV1126B_TOUCH_DEVICE` | `auto`；可选 `none` 或 evdev 路径 |
 | `--talk-key CODE` | 无 | 139（KEY_MENU），音量/左右键不能用作会话键 |
@@ -34,8 +36,15 @@
 | `MYBOT_LOCALE` | 提示音 locale，包括 AP 配网语音；默认与 UI 构建语言相同，包内提供 `zh-CN`、`en-US`；不会替换编译字库/UI文案 |
 | `RV1126B_VIDEO` | 由 `run.sh` 读取，0 选语音程序，1 选视频程序 |
 | `RV1126B_VIDEO_DEVICE` | 视频程序指定相机节点，默认自动寻找唯一 `rkisp_mainpath` |
+| `RV1126B_NTP_SERVER` | 仅内置可选 BusyBox helper 读取，默认 `pool.ntp.org`；接受 DNS 主机名或 IPv4 地址，不自动启用 helper |
 
 启动脚本不自动 source `example.env`；按需先在 shell 中 export。默认中英文构建均保留同一 server 地址，切换 UI 语言不会自动切换服务。可使用 `--server` 显式覆盖。
+
+## 系统时间
+
+网络就绪且 AP 配网结束后，应用才开始等待系统时间达到 2026-01-01 00:00:00 UTC。该门槛仅检查合理性，不证明准确授时；默认只等待 OS 现有校时，30 秒超时后在 UI/标准错误说明原因并非零退出，不跳过 TLS 验证。网络断开会取消当前等待与自有 helper，恢复后重新计算完整窗口。
+
+可通过 `--time-sync-helper` 显式选择包内 `"$PWD/assets/time/sync-busybox.sh"`，不自动启用。只有时钟无效且 `/proc` 检查确认没有 `ntpd`、`chronyd`、`systemd-timesyncd` 或 `openntpd` 时才运行；既有服务优先，无法检查时明确失败。helper 无参数调用，退出时钟仍无效也会失败，取消只清理本应用启动的进程组。工具、权限、UDP 123 和设备测试要求见[系统时间指南](time-sync.zh-CN.md)。
 
 ## 身份与持久化
 

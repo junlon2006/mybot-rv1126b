@@ -1,6 +1,6 @@
 # MyBot RV1126B 运行包
 
-本包用于 RV1126B TEST2 RK805B V10 的现有 AArch64 Buildroot 系统。0.3.2 为 AP 语音引导候选，AP 配网、语音引导与音量均需真机回归；此前 0.1.0 语音/UI与 0.1.1 显示优化已由用户验收。可选视频和长期专项尚未完成。
+本包用于 RV1126B TEST2 RK805B V10 的现有 AArch64 Buildroot 系统。0.3.3 为系统时间保护候选，AP 配网、语音引导、音量与时间处理均需真机回归；此前 0.1.0 语音/UI与 0.1.1 显示优化已由用户验收。可选视频和长期专项尚未完成。
 
 ## 校验与运行
 
@@ -28,6 +28,18 @@ sha256sum -c SHA256SUMS
 UI 为 640×480，默认旋转 270°到物理 480×640 屏；调整方向可加 `--rotation 90`。语音启动保留已有可用网络；离线时先尝试已保存网络，失败则进入 AP 配网。手机连接开放热点 `mybot-xxxx`，打开 `http://192.168.4.1/`，选择 2.4 GHz Wi-Fi 或手动输入隐藏 SSID，输入密码并等待连接成功。失败可重试，成功后关闭热点并恢复业务。未绑定时显示并播报配对码。认领后短触（50–999 ms）或 Menu 键开始/挂断，左右键调音量。持续按住触屏或 Menu 键 3 秒请求 Wi-Fi 配网，会先结束会话。终端 `s/q/p/u/d/w/e` 加 Enter 分别为开始、挂断、重新配对、音量增/减、配网和退出；Ctrl-C 也可退出。
 
 默认服务为 `https://botstation.shengwang.cn/api`，`--server HTTPS_URL` 可覆盖。服务地址、身份配置及 KV 路径保持一致时沿用原绑定。默认身份由 CPU Serial 稳定派生；需要显式身份可用 `--device-id` 或首次绑定前设置 `--identity-interface`，不要在升级时随意变更。
+
+## 系统时间
+
+网络就绪且退出 AP 后，启动 MyBot 前默认等待 OS 校时最多 30 秒。`--time-sync-timeout 60` 可调整等待（1–300 秒）；时间仍早于 2026-01-01 UTC 时，UI 和标准错误报告原因并非零退出，不跳过 TLS 校验。此门槛只表示日期合理，不能证明精确同步。网络丢失取消等待，恢复后重新计时；保留系统现有校时服务。
+
+可选的 `assets/time/sync-busybox.sh` 已附带但不自动运行。仅在系统没有运行现成时间服务、设备具备 `/bin/busybox ntpd`、校时与 socket 权限（通常为 root）、DNS 和 UDP 123 通路时显式选择：
+
+```sh
+./run.sh --time-sync-helper "$PWD/assets/time/sync-busybox.sh"
+```
+
+它在前台执行一次性校时，默认服务器为 `pool.ntp.org`，可通过 `RV1126B_NTP_SERVER` 指定 DNS 主机名或 IPv4 地址。已有 `ntpd`/`chronyd`/`systemd-timesyncd`/`openntpd` 优先；应用不停止它们，只回收自有 helper 进程组。helper 退出后时钟仍无效也会失败。请验证正常/无效时间、超时、缺少 helper、现成服务优先及取消后无进程残留；不要在共享生产系统随意回拨时钟。
 
 ## AP 配网前提
 

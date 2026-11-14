@@ -11,6 +11,9 @@ add_library(mybot_prompt STATIC src/services/audio_prompt.c)
 target_include_directories(mybot_prompt PUBLIC include)
 target_link_libraries(mybot_prompt PUBLIC mybot::public_headers Threads::Threads)
 target_compile_options(mybot_prompt PRIVATE -Wall -Wextra -Werror)
+add_library(mybot_time_sync STATIC src/services/time_sync.c)
+target_include_directories(mybot_time_sync PUBLIC include)
+target_compile_options(mybot_time_sync PRIVATE -Wall -Wextra -Werror)
 find_package(OpenSSL REQUIRED)
 add_library(mybot_wifi STATIC src/services/wifi/wifi_backend.cc
     src/services/wifi/wifi_portal.cc src/services/wifi/wifi_service.cc)
@@ -34,7 +37,7 @@ target_include_directories(mybot_platform PUBLIC include PRIVATE src/internal
     "${RV1126B_BOARD_INCLUDE}" "${RV1126B_ALSA_INCLUDE}")
 target_compile_options(mybot_platform PRIVATE -Wall -Wextra -Werror)
 target_link_libraries(mybot_platform PUBLIC mybot::sdk mybot_linux_display
-    PRIVATE mybot_linux_services mybot_wifi mybot_volume mybot_prompt "${RV1126B_ALSA_LIBRARY}" Threads::Threads)
+    PRIVATE mybot_linux_services mybot_wifi mybot_volume mybot_prompt mybot_time_sync "${RV1126B_ALSA_LIBRARY}" Threads::Threads)
 if(MYBOT_ENABLE_VIDEO)
     find_path(RV1126B_MPP_INCLUDE rk_mpi.h PATH_SUFFIXES rockchip REQUIRED)
     find_library(RV1126B_MPP_LIBRARY rockchip_mpp REQUIRED)

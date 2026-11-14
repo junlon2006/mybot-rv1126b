@@ -4,6 +4,7 @@
 #include "board_config.h"
 #include <errno.h>
 #include <getopt.h>
+#include <limits.h>
 #include <linux/input.h>
 #include <net/if.h>
 #include <stdio.h>
@@ -39,6 +40,8 @@ static void usage(const char *program) {
         "  --wifi-interface IF      Wi-Fi station interface (default: auto)\n"
         "  --wifi-provision         enter AP Wi-Fi setup before starting services\n"
         "  --no-wifi-provisioning   monitor existing networking without AP setup\n"
+        "  --time-sync-timeout N    clock readiness timeout, 1..300 seconds (default: 30)\n"
+        "  --time-sync-helper PATH optional absolute one-shot helper; default: system service\n"
         "  --input-device PATH      auto, none, stdin, or /dev/input/eventN\n"
         "  --touch-device PATH      auto, none, or /dev/input/eventN\n"
         "  --talk-key CODE          default: 139 (KEY_MENU); left/right adjust volume\n"
@@ -50,7 +53,8 @@ static void usage(const char *program) {
         "  --help / --version       no hardware access or file creation\n"
         "Environment: RV1126B_SERVER, RV1126B_DEVICE_ID, RV1126B_INTERFACE,\n"
         "RV1126B_INPUT_DEVICE, RV1126B_TOUCH_DEVICE, MYBOT_KV_STORE_DIR,\n"
-        "RV1126B_WIFI_INTERFACE, MYBOT_ASSETS_DIR, MYBOT_LOCALE;\n"
+        "RV1126B_WIFI_INTERFACE, MYBOT_ASSETS_DIR, MYBOT_LOCALE,\n"
+        "RV1126B_TIME_SYNC_TIMEOUT, RV1126B_TIME_SYNC_HELPER;\n"
         "stdin s/q/p/u/d/w/e then Enter; hold touch/menu 3 s for Wi-Fi setup.\n",
         program);
 }
@@ -81,6 +85,8 @@ int rv1126b_app_config_parse(int argc, char **argv, rv1126b_app_config_t *out) {
     bool demo = false;
     bool wifi_provisioning = true, force_wifi_provisioning = false;
     const char *wifi_interface = environment("RV1126B_WIFI_INTERFACE", "");
+    const char *time_timeout_text = environment("RV1126B_TIME_SYNC_TIMEOUT", "30");
+    const char *time_helper = environment("RV1126B_TIME_SYNC_HELPER", "");
     enum {
         OPT_SERVER = 1000,
         OPT_ID,
@@ -91,6 +97,8 @@ int rv1126b_app_config_parse(int argc, char **argv, rv1126b_app_config_t *out) {
         OPT_WIFI_INTERFACE,
         OPT_WIFI_PROVISION,
         OPT_NO_WIFI_PROVISION,
+        OPT_TIME_TIMEOUT,
+        OPT_TIME_HELPER,
         OPT_INPUT,
         OPT_TOUCH,
         OPT_KEY,
@@ -112,6 +120,8 @@ int rv1126b_app_config_parse(int argc, char **argv, rv1126b_app_config_t *out) {
         {"wifi-interface", required_argument, NULL, OPT_WIFI_INTERFACE},
         {"wifi-provision", no_argument, NULL, OPT_WIFI_PROVISION},
         {"no-wifi-provisioning", no_argument, NULL, OPT_NO_WIFI_PROVISION},
+        {"time-sync-timeout", required_argument, NULL, OPT_TIME_TIMEOUT},
+        {"time-sync-helper", required_argument, NULL, OPT_TIME_HELPER},
         {"input-device", required_argument, NULL, OPT_INPUT},
         {"touch-device", required_argument, NULL, OPT_TOUCH},
         {"talk-key", required_argument, NULL, OPT_KEY},
@@ -153,6 +163,12 @@ int rv1126b_app_config_parse(int argc, char **argv, rv1126b_app_config_t *out) {
         case OPT_NO_WIFI_PROVISION:
             wifi_provisioning = false;
             break;
+        case OPT_TIME_TIMEOUT:
+            time_timeout_text = optarg;
+            break;
+        case OPT_TIME_HELPER:
+            time_helper = optarg;
+            break;
         case OPT_INPUT:
             platform.input_device = optarg;
             break;
@@ -193,6 +209,11 @@ int rv1126b_app_config_parse(int argc, char **argv, rv1126b_app_config_t *out) {
     }
     if (optind != argc || (demo && !platform.enable_ui))
         goto invalid;
+    unsigned int time_timeout;
+    if (unsigned_value(time_timeout_text, 300, &time_timeout) < 0 || time_timeout == 0 ||
+        (time_helper[0] && time_helper[0] != '/') || strlen(time_helper) >= PATH_MAX ||
+        strpbrk(time_helper, "\r\n"))
+        goto invalid;
     if (strlen(wifi_interface) >= IFNAMSIZ ||
         strspn(wifi_interface,
                "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-") !=
@@ -215,6 +236,8 @@ int rv1126b_app_config_parse(int argc, char **argv, rv1126b_app_config_t *out) {
         .wifi_provisioning = wifi_provisioning,
         .force_wifi_provisioning = force_wifi_provisioning,
         .wifi_interface = wifi_interface,
+        .time_sync_timeout = time_timeout,
+        .time_sync_helper = time_helper,
     };
     return 0;
 invalid:

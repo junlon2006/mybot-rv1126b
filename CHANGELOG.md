@@ -2,6 +2,16 @@
 
 Changes to project-maintained code follow Semantic Versioning. Validation evidence is maintained in [one matrix](docs/validation/README.md); a release entry does not imply hardware acceptance.
 
+## 0.3.3 — Unreleased
+
+- Gate SDK startup on plausible system time after network readiness and AP exit, with a configurable 1–300-second monotonic timeout, defaulting to 30 seconds.
+- Preserve OS time services by default; report timeout and helper failures through the UI and standard error, then exit with a nonzero status.
+- Support an explicitly selected foreground time helper only when the clock is invalid and no existing time daemon is detected; cancel and reap its owned process group on network loss or shutdown.
+- Bundle an opt-in BusyBox one-shot wrapper with validated NTP server configuration, without installing services or disabling TLS verification.
+- Reset the wait window on network loss and reject successful helper exits that leave an invalid clock; the 2026 threshold remains a plausibility check, not proof of precise synchronization.
+
+This system-time guard candidate requires hardware clock, service-ownership and NTP connectivity testing.
+
 ## 0.3.2 — Unreleased
 
 - Play the bundled localized Wi-Fi guidance once per setup session, only after the AP and portal are ready; connection retries do not repeat it.
