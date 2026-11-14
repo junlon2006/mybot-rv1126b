@@ -153,6 +153,34 @@ int main(void) {
         rv1126b_renderer_step(now += 500);
         CHECK(rv1126b_renderer_canvas());
         check_no_unimplemented_portal(ap_root);
+        uint64_t waiting_network = hash(rv1126b_renderer_canvas());
+        status.clock_state = 1;
+        rv1126b_renderer_update(&provisioning, &status, now += 100);
+        rv1126b_renderer_step(now += 500);
+        CHECK(rv1126b_renderer_canvas());
+        lv_obj_t *time_title = find_label(ap_root, "System time");
+        CHECK(time_title && lv_obj_is_visible(time_title));
+        CHECK(find_label(ap_root, "Checking system time"));
+        CHECK(find_label(ap_root, "Required: 2026 or later"));
+        CHECK(find_label(ap_root, "> state: waiting_time"));
+        check_visible_labels(ap_root);
+        uint64_t time_waiting = hash(rv1126b_renderer_canvas());
+        CHECK(time_waiting != waiting_network);
+        status.clock_state = 2;
+        rv1126b_renderer_update(&provisioning, &status, now += 100);
+        rv1126b_renderer_step(now += 500);
+        CHECK(rv1126b_renderer_canvas());
+        time_title = find_label(ap_root, "Time unavailable");
+        CHECK(time_title && lv_obj_is_visible(time_title));
+        CHECK(find_label(ap_root, "Check time service; restart"));
+        CHECK(find_label(ap_root, "> state: time_failed"));
+        check_visible_labels(ap_root);
+        CHECK(hash(rv1126b_renderer_canvas()) != time_waiting);
+        status.clock_state = 0;
+        rv1126b_renderer_update(&provisioning, &status, now += 100);
+        rv1126b_renderer_step(now += 500);
+        CHECK(hash(rv1126b_renderer_canvas()) == waiting_network);
+        check_visible_labels(ap_root);
         const mybot_lcd_content_t conversation = {MYBOT_LCD_SCREEN_IN_CONVERSATION, {0}, 0};
         rv1126b_renderer_update(&conversation, &status, now);
         rv1126b_renderer_step(now += 1000);
@@ -174,6 +202,23 @@ int main(void) {
             find_label(lv_display_get_screen_active(lv_display_get_default()), "> MyBot / RV1126B");
         CHECK(brand && lv_obj_is_visible(brand));
         check_native_text(brand);
+        /* The product gate must also suppress a stale face/expression override,
+         * and clearing it must restore the ordinary state-driven view. */
+        status.clock_state = 1;
+        rv1126b_renderer_update(&ready, &status, now += 100);
+        CHECK(rv1126b_renderer_expression(MYBOT_EXPRESSION_HAPPY) == 0);
+        rv1126b_renderer_step(now += 500);
+        CHECK(rv1126b_renderer_canvas());
+        time_title = find_label(ap_root, "System time");
+        CHECK(time_title && lv_obj_is_visible(time_title));
+        check_visible_labels(ap_root);
+        status.clock_state = 0;
+        rv1126b_renderer_update(&ready, &status, now += 100);
+        CHECK(rv1126b_renderer_expression(-1) == 0);
+        rv1126b_renderer_step(now += 1000);
+        CHECK(rv1126b_renderer_canvas());
+        CHECK(!lv_obj_is_visible(time_title));
+        check_visible_labels(ap_root);
         uint64_t hashes[MYBOT_EXPRESSION_COUNT];
         unsigned distinct = 0;
         for (int expression = 0; expression < MYBOT_EXPRESSION_COUNT; ++expression) {
@@ -199,6 +244,6 @@ int main(void) {
         rv1126b_renderer_destroy();
     }
     free(s_frame);
-    puts("Real LVGL: 10 pages, 23 expressions, Chinese glyphs, label width and teardown: PASS");
+    puts("Real LVGL: workflow pages, clock gate, expressions, glyphs and pixel restoration: PASS");
     return 0;
 }

@@ -8,6 +8,9 @@
 #include "mybot_platform/platform.h"
 #include "mybot_platform/display.h"
 #include "mybot_platform/wifi.h"
+#include "mybot_platform/volume.h"
+#include "mybot_platform/prompt.h"
+#include "mybot_platform/time_sync.h"
 #include "mybot_ui/expression.h"
 
 #include <errno.h>
@@ -130,7 +133,8 @@ int main(int argc, char **argv) {
         return 1;
     }
     int failed = 0;
-    bool sdk_started = false, ui_started = false, wifi_started = false;
+    bool sdk_started = false, ui_started = false, wifi_started = false, volume_started = false;
+    rv1126b_time_sync_t *time_sync = NULL;
     char dhcp_script[PATH_MAX];
     if (!demo) {
         char executable[PATH_MAX], assets[PATH_MAX];
@@ -158,6 +162,22 @@ int main(int argc, char **argv) {
         fprintf(stdout, "mybot-rv1126b %s: id=%s, locale=%s, ptime=%d ms, video=%d\n",
                 RV1126B_VERSION, device_id, RV1126B_LOCALE, MYBOT_AUDIO_PTIME_MS,
                 MYBOT_ENABLE_VIDEO);
+        if (rv1126b_volume_prepare(getenv("MYBOT_KV_STORE_DIR")) < 0) {
+            fprintf(stderr, "Cannot restore private playback volume\n");
+            failed = 1;
+            goto cleanup;
+        }
+        volume_started = true;
+        const rv1126b_time_sync_config_t time_config = {
+            .timeout_seconds = options.time_sync_timeout,
+            .helper_path = options.time_sync_helper,
+        };
+        time_sync = rv1126b_time_sync_create(&time_config);
+        if (!time_sync) {
+            fprintf(stderr, "Cannot initialize system time readiness guard\n");
+            failed = 1;
+            goto cleanup;
+        }
     }
     if (platform.enable_ui) {
         if (rv1126b_ui_start(drm, rotation) < 0) {
@@ -221,11 +241,23 @@ int main(int argc, char **argv) {
         const mybot_lcd_content_t waiting = {MYBOT_LCD_SCREEN_WIFI_PROVISIONING, {0}, 0};
         rv1126b_ui_set_state(MYBOT_STATE_WIFI_PROVISIONING);
         rv1126b_ui_show(&waiting);
+        rv1126b_ui_time_status(0);
         int last_wifi_state = -1;
+        /* One announcement per setup session, including single-radio retries
+         * that temporarily stop and then restore the same AP. */
+        bool prompt_announced = false;
+        int last_time_state = -1;
         fprintf(stdout, "Waiting for usable IPv4 routing and system time\n");
         while (!s_exit && monotonic_ms() < deadline) {
             rv1126b_wifi_status_t status = {0};
             rv1126b_wifi_status(&status);
+            if (status.ap_active && !prompt_announced) {
+                prompt_announced = true;
+                if (rv1126b_prompt_start(getenv("MYBOT_ASSETS_DIR"), getenv("MYBOT_LOCALE")) < 0)
+                    fprintf(stderr, "Cannot start Wi-Fi setup voice guidance\n");
+            } else if (!status.ap_active) {
+                rv1126b_prompt_stop();
+            }
             if ((int)status.state != last_wifi_state) {
                 fprintf(stdout, "Wi-Fi state=%d%s%s\n", status.state, status.error[0] ? ": " : "",
                         status.error);
@@ -244,13 +276,43 @@ int main(int argc, char **argv) {
             bool configured =
                 !options.wifi_provisioning || status.state == RV1126B_WIFI_ONLINE ||
                 (!require_provisioning && status.state == RV1126B_WIFI_ERROR && !status.ap_active);
-            if (ready && configured && !status.ap_active && time(NULL) >= 1767225600)
+            bool network_ready = ready && configured && !status.ap_active;
+            rv1126b_time_sync_state_t time_state = rv1126b_time_sync_poll(time_sync, network_ready);
+            if ((int)time_state != last_time_state) {
+                fprintf(stdout, "Time readiness state=%d%s%s\n", time_state,
+                        rv1126b_time_sync_error(time_sync)[0] ? ": " : "",
+                        rv1126b_time_sync_error(time_sync));
+                last_time_state = (int)time_state;
+            }
+            rv1126b_ui_time_status(time_state == RV1126B_TIME_WAIT_CLOCK ? 1 : 0);
+            if (time_state == RV1126B_TIME_FAILED || time_state == RV1126B_TIME_TIMEOUT) {
+                fprintf(stderr,
+                        "Cannot start services: %s\n"
+                        "Check the system time service or configure --time-sync-helper; "
+                        "then restart.\n",
+                        rv1126b_time_sync_error(time_sync));
+                rv1126b_prompt_stop();
+                rv1126b_time_sync_destroy(time_sync);
+                time_sync = NULL;
+                rv1126b_ui_time_status(2);
+                /* Give the screen time to show the fault while honoring exit
+                 * signals and an explicitly bounded verification run. */
+                for (unsigned int hold = 0; hold < 20 && platform.enable_ui && !s_exit &&
+                                            monotonic_ms() < deadline && !rv1126b_ui_failed();
+                     ++hold)
+                    nanosleep(&interval, NULL);
+                failed = 1;
+                goto cleanup;
+            }
+            if (network_ready && time_state == RV1126B_TIME_READY)
                 break;
             nanosleep(&interval, NULL);
         }
         if (s_exit || monotonic_ms() >= deadline)
             goto cleanup;
         rv1126b_ui_provisioning(NULL);
+        rv1126b_ui_time_status(0);
+        rv1126b_prompt_stop();
         if (mybot_start(&config) < 0) {
             fprintf(stderr, "MyBot startup failed\n");
             failed = 1;
@@ -291,10 +353,14 @@ int main(int argc, char **argv) {
         rv1126b_wifi_request_provisioning();
     }
 cleanup:
+    rv1126b_prompt_stop();
     if (sdk_started)
         stop_sdk();
+    rv1126b_time_sync_destroy(time_sync);
     if (wifi_started)
         rv1126b_wifi_stop();
+    if (volume_started)
+        rv1126b_volume_shutdown();
     if (ui_started && rv1126b_ui_stop() < 0)
         failed = 1;
     close(lock);

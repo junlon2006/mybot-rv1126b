@@ -42,7 +42,8 @@ class PackagingTests(unittest.TestCase):
         self.write(self.root / "packaging/run.sh", 'case "${RV1126B_VIDEO:-0}" in\n0) :;;\n1) :;;\nesac\n')
         self.write(self.root / "packaging/example.env", "# fixture\n")
         self.write(self.root / "packaging/README.zh-CN.md", "fixture guide\n")
-        self.write(self.root / "packaging/wifi/udhcpc.script", "#!/bin/sh\nexit 0\n")
+        for source in packager.EXECUTABLE_ASSETS.values():
+            self.write(self.root / source, "#!/bin/sh\nexit 0\n")
         self.write(self.root / "vendor/mybot/assets/locales/zh-CN/0.pcm", "pcm")
         self.sdk = self.base / "sdk"
         self.rtsa = self.sdk / "lib/libagora-rtc-sdk.so"
@@ -133,9 +134,10 @@ class PackagingTests(unittest.TestCase):
                 self.assertEqual((item.uid, item.gid, item.uname, item.gname), (0, 0, "", ""))
                 self.assertFalse(item.issym() or item.islnk())
                 self.assertNotIn("..", Path(item.name).parts)
-                if item.name.endswith('/assets/wifi/udhcpc.script'):
+                if any(item.name.endswith('/' + name) for name in packager.EXECUTABLE_ASSETS):
                     self.assertEqual(item.mode, 0o755)
-        self.assertTrue((destination / 'assets/wifi/udhcpc.script').stat().st_mode & 0o111)
+        for name in packager.EXECUTABLE_ASSETS:
+            self.assertTrue((destination / name).stat().st_mode & 0o111)
         for line in (destination / "SHA256SUMS").read_text().splitlines():
             expected, filename = line.split("  ", 1)
             self.assertEqual(expected, metadata.digest(destination / filename))

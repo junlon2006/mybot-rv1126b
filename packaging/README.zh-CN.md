@@ -1,6 +1,6 @@
 # MyBot RV1126B 运行包
 
-本包用于 RV1126B TEST2 RK805B V10 的现有 AArch64 Buildroot 系统。0.3.0 为 AP 配网候选，需重新进行真机回归；此前 0.1.0 语音/UI与 0.1.1 显示优化已由用户验收。可选视频和长期专项尚未完成。
+本包用于 RV1126B TEST2 RK805B V10 的现有 AArch64 Buildroot 系统。0.3.3 为系统时间保护候选，AP 配网、语音引导、音量与时间处理均需真机回归；此前 0.1.0 语音/UI与 0.1.1 显示优化已由用户验收。可选视频和长期专项尚未完成。
 
 ## 校验与运行
 
@@ -29,6 +29,18 @@ UI 为 640×480，默认旋转 270°到物理 480×640 屏；调整方向可加 
 
 默认服务为 `https://botstation.shengwang.cn/api`，`--server HTTPS_URL` 可覆盖。服务地址、身份配置及 KV 路径保持一致时沿用原绑定。默认身份由 CPU Serial 稳定派生；需要显式身份可用 `--device-id` 或首次绑定前设置 `--identity-interface`，不要在升级时随意变更。
 
+## 系统时间
+
+网络就绪且退出 AP 后，启动 MyBot 前默认等待 OS 校时最多 30 秒。`--time-sync-timeout 60` 可调整等待（1–300 秒）；时间仍早于 2026-01-01 UTC 时，UI 和标准错误报告原因并非零退出，不跳过 TLS 校验。此门槛只表示日期合理，不能证明精确同步。网络丢失取消等待，恢复后重新计时；保留系统现有校时服务。
+
+可选的 `assets/time/sync-busybox.sh` 已附带但不自动运行。仅在系统没有运行现成时间服务、设备具备 `/bin/busybox ntpd`、校时与 socket 权限（通常为 root）、DNS 和 UDP 123 通路时显式选择：
+
+```sh
+./run.sh --time-sync-helper "$PWD/assets/time/sync-busybox.sh"
+```
+
+它在前台执行一次性校时，默认服务器为 `pool.ntp.org`，可通过 `RV1126B_NTP_SERVER` 指定 DNS 主机名或 IPv4 地址。已有 `ntpd`/`chronyd`/`systemd-timesyncd`/`openntpd` 优先；应用不停止它们，只回收自有 helper 进程组。helper 退出后时钟仍无效也会失败。请验证正常/无效时间、超时、缺少 helper、现成服务优先及取消后无进程残留；不要在共享生产系统随意回拨时钟。
+
 ## AP 配网前提
 
 目标系统需提供 `iw`、`hostapd`、`dnsmasq`、`wpa_supplicant`、`udhcpc`、`ip` 和支持 nl80211 AP 的无线驱动。包内只包含 `assets/wifi/udhcpc.script`，不包含上述系统工具。需有创建接口、配置 IP、启动 DHCP 与绑定 80/53 端口的权限。优先 AP+STA；单接口回退不能抢占外部网络管理服务，无法安全接管时报告错误。热点的 `xxxx` 取自 STA MAC 的前两个字节，小写十六进制。
@@ -37,9 +49,15 @@ UI 为 640×480，默认旋转 270°到物理 480×640 屏；调整方向可加 
 
 当前 AP 功能尚未真机验收。请检查首次配网、错误密码重试、重启复用、会话中切换配网、已有网络不变及退出清理。
 
+热点与门户就绪后，每次配网流程播放一次语音引导，使用包内 `assets/locales/<MYBOT_LOCALE>/wificonfig.pcm`，默认语言与 UI 构建相同，也可选 `zh-CN` 或 `en-US`。语音使用已保存音量，静音时不发声；错误密码重试不重复播报。离开配网或退出时取消并释放声卡，恢复业务前不会与 SDK 音频重叠；提示音失败会报告错误，手机仍可继续配网。请检查完整播报、两种语言、静音、重试，以及播放期间退出后再次启动的音频。
+
 ## 音视频及内容
 
-音频使用既有 `botstation_capture` / `botstation_playback`，SDK 为 16 kHz mono S16、20 ms、Cloud AEC。`--no-ui` 可隔离语音。包内包含视频程序时可选择：
+音频使用既有 `botstation_capture` / `botstation_playback`，SDK 为 16 kHz mono S16、20 ms、Cloud AEC。`--no-ui` 可隔离语音。
+
+输出音量范围为 0–100，首次启动默认 100，保持此前的输出响度。按键、终端和云端控制共用已保存音量；重启应用及手动配网后恢复。音量设置原子保存于私有的 `/userdata/mybot-rv1126b/volume.settings`（0600），保存失败时报告错误并保留原音量，不修改系统 mixer 或采集增益。请检查静音、递增/递减、退出重启、配网恢复和云端控制后的实际响度与回声消除效果。
+
+包内包含视频程序时可选择：
 
 ```sh
 RV1126B_VIDEO=1 ./run.sh

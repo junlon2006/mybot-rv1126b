@@ -15,6 +15,11 @@ from build_metadata import (digest, git, public_abi, public_manifest, source_sna
 
 ROOT = Path(__file__).resolve().parents[1]
 
+EXECUTABLE_ASSETS = {
+    "assets/wifi/udhcpc.script": "packaging/wifi/udhcpc.script",
+    "assets/time/sync-busybox.sh": "packaging/time/sync-busybox.sh",
+}
+
 LICENSES = [
     ("LICENSE", "project-APACHE-2.0.txt"),
     ("THIRD_PARTY_NOTICES.md", "THIRD_PARTY_NOTICES.md"),
@@ -71,7 +76,7 @@ def deterministic_archive(directory, archive, epoch):
                         tar.addfile(info)
                     else:
                         executable = (path.name == "run.sh" or path.parent.name == "bin" or
-                                      path.relative_to(directory).as_posix() == "assets/wifi/udhcpc.script")
+                                      path.relative_to(directory).as_posix() in EXECUTABLE_ASSETS)
                         info.mode = 0o755 if executable else 0o644
                         info.size = path.stat().st_size
                         with path.open("rb") as data:
@@ -128,9 +133,11 @@ def package(root, args):
             write_json(staging / ("build-manifest-" + profile + ".json"), public_build)
         shutil.copyfile(baseline["config"]["sdk"]["rtsa_library"], staging / "lib/libagora-rtc-sdk.so")
         shutil.copytree(root / "vendor/mybot/assets/locales", staging / "assets/locales")
-        (staging / "assets/wifi").mkdir()
-        shutil.copyfile(root / "packaging/wifi/udhcpc.script", staging / "assets/wifi/udhcpc.script")
-        (staging / "assets/wifi/udhcpc.script").chmod(0o755)
+        for relative, source in EXECUTABLE_ASSETS.items():
+            target = staging / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(root / source, target)
+            target.chmod(0o755)
         launcher = (root / "packaging/run.sh").read_text()
         if args.profile == "video":
             if "${RV1126B_VIDEO:-0}" not in launcher:
