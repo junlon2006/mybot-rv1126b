@@ -42,3 +42,4 @@ add_custom_target(mybot-artifacts ALL
 install(TARGETS mybot-rv1126b RUNTIME DESTINATION bin)
 install(FILES "${AGORA_RTC_LIBRARY}" DESTINATION lib)
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/vendor/mybot/assets/locales" DESTINATION assets)
+install(PROGRAMS "${PROJECT_SOURCE_DIR}/packaging/wifi/udhcpc.script" DESTINATION assets/wifi)

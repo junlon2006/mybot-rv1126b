@@ -1,6 +1,6 @@
 # 架构与资源归属
 
-本项目是独立 Linux 用户态应用。板级驱动、系统网络/时间/ISP 服务继续由已有固件提供；MyBot 1.3.0 负责配对、会话、RTC/RTM 和音频流水线。工程不创建第二套业务状态机。
+本项目是独立 Linux 用户态应用。板级驱动、系统时间/ISP 服务及网络工具继续由已有固件提供；MyBot 1.3.0 负责配对、会话、RTC/RTM 和音频流水线。工程不创建第二套业务状态机。
 
 ```text
 .
@@ -29,6 +29,7 @@ flowchart TD
     platform --> sdk
     platform --> display[Linux display worker / DRM]
     platform --> io[ALSA / evdev / network / optional V4L2 + MPP]
+    platform --> wifi[Wi-Fi control worker / AP portal / Linux backend]
     display --> ui[ui renderer]
     ui --> public[MyBot public types]
     ui --> lvgl[static LVGL 9.5]
@@ -46,6 +47,7 @@ flowchart TD
 | `src/platform/boards/rv1126b-test2-rk805b-v10/` | 唯一已记录板型的屏幕、旋转、ALSA、输入和相机默认值 |
 | `src/platform/src/drivers/` | ALSA、evdev、DRM、像素旋转及可选视频硬件边界 |
 | `src/platform/src/services/` | 网络监测、显示 worker 等 Linux 服务 |
+| `src/platform/src/services/wifi/` | 独立 Wi-Fi 控制线程、AP HTTP/DNS 门户、Linux 网络后端及私有凭据存储 |
 | `src/ui/src/` | 固定画布 renderer、状态与表情策略 |
 | `src/ui/views/pixel_glasses/` | 视图、图形、遮罩及对应来源声明 |
 | `src/ui/fonts/` | 字体输入身份、已生成 C 字库及许可 |
@@ -61,11 +63,19 @@ UI 通过 present 回调交付画布，不依赖 DRM、ALSA、MPP 或 pthread。
 
 ## 生命周期契约
 
-启动先解析并验证配置，再取得互斥、准备私有存储，启动显示与平台，最后接入 SDK 生命周期。失败走对应清理路径；已获得的线程/回调资源在销毁前等待完成。输入只发送已有 SDK 控制动作，不拥有会话状态。
+启动先解析并验证配置，再取得互斥、准备私有存储，启动显示与平台，最后接入 SDK 生命周期。失败走对应清理路径；已获得的线程/回调资源在销毁前等待完成。输入发送 SDK 控制动作或配网请求，不拥有会话状态。手动配网由应用主循环先关闭 SDK，再请求 Wi-Fi 服务进入 AP；UI 通过有界快照显示热点、地址与连接进度。
 
 显示 worker 在自身执行上下文调用 LVGL；renderer 接收有界状态副本。DRM backend 拥有 fd、buffers 和原显示状态，失败/正常退出时释放并恢复已保存的原输出。音频采集与播放维持各自生命周期，不能释放仍被回调使用的对象。视频初始化与启动分开，停止后不继续提交借用帧。
 
-原厂 `botstation-device` 和本应用共享硬件；进程检查与锁共同阻止并行占用。设备现有 ISP、网络和时间服务不归本应用销毁。`/userdata/mybot-rv1126b` 保留绑定凭据，与版本解包目录分离。
+原厂 `botstation-device` 和本应用共享硬件；进程检查与锁共同阻止并行占用。设备现有 ISP、时间及外部网络管理服务不归本应用销毁。Wi-Fi 后端只停止本应用创建的子进程/虚拟接口，已附着的外部 supplicant 不被全局停止。`/userdata/mybot-rv1126b` 保留绑定凭据，与版本解包目录分离。
+
+## Wi-Fi 配网边界
+
+`mybot_platform/wifi.h` 提供 C 接口；控制器串行执行扫描、连接、保存及 AP 切换。HTTP/DNS 各有独立 socket worker，处理线程只读取缓存快照或排队操作，连接尝试有总预算并支持取消。候选网络获得可用 IPv4 和路由后才更新私有凭据；SDK 在配网退出、网络就绪后恢复启动。
+
+优先创建独立 AP 虚拟接口并保留 STA；单接口回退只接管本应用拥有的 STA，无法安全接管时明确报错。门户绑定 AP 地址，原生提供 HTTP 80 和 captive DNS 53；dnsmasq 只提供 DHCP，不与 DNS worker 争用 53 端口。HTTP 写操作要求同源 Origin、Host 和每次启动更新的 CSRF token，解析限制为 1 KiB header 与 1 KiB body；SSID/密码不进入 URL 或日志，页面使用 `textContent` 显示动态网络名称。DNS 不转发到外部服务器。
+
+缓存最多 10 个网络；加密网络保存派生 PSK，文件采用原子私有写入，位于 `MYBOT_KV_STORE_DIR/wifi/wifi.credentials`。运行期配置和控制 socket 位于私有 session 目录；停止时取消尝试、等待线程、关闭端口并清理本应用拥有的运行资源，保留持久化配置。运行工具及硬件前提见[配网指南](../user/wifi-provisioning.zh-CN.md)。
 
 ## 兼容边界
 

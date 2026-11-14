@@ -9,6 +9,7 @@
 typedef struct {
     char state[MYBOT_DISPLAY_STATE_CAPACITY];
     bool in_conversation;
+    char provisioning_ssid[33];
 } mybot_display_runtime_status_t;
 
 #ifdef __cplusplus

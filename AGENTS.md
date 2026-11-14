@@ -11,6 +11,7 @@ Project documentation and tool output describe this application and its required
 - Keep credentials, runtime data, private device identifiers, local SDK paths and generated packages out of commits. Generated outputs belong in ignored `build/`, `local/` and `dist/` directories.
 - Device access, deployment, external repositories and Git history changes follow the current user's authorization. Build/check/package scripts must not implicitly deploy or connect to a device.
 - Preserve the current CLI/identity/KV, 16 kHz mono S16/20 ms audio and native UI contracts during structural refactors. Keep public/private include boundaries explicit.
+- Wi-Fi provisioning belongs to the product control service. Stop the SDK before manual AP entry, publish AP guidance only after the radio and portal are ready, and persist credentials only after routed connectivity succeeds. Keep credentials out of argv, URLs and logs; clean up only owned network resources and processes.
 - Use Python 3.10+ and CMake 3.25+. Run checks appropriate to the change as documented in `docs/development/testing.zh-CN.md`; keep missing dependencies visible. Record actual results in `docs/validation/README.md`, separating host, cross-build and hardware evidence.
 
 Do not claim unexecuted checks passed. Keep English/Chinese entry points aligned and update affected docs with code. This guide does not require an extra approval step for work already authorized by the user.

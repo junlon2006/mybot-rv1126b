@@ -123,7 +123,8 @@ int main(void) {
         uint32_t now = 1;
         CHECK(rv1126b_renderer_create(present, &s_fail, now) == 0);
         CHECK(rv1126b_renderer_create(present, &s_fail, now) < 0);
-        mybot_display_runtime_status_t status = {"in_conversation", true};
+        mybot_display_runtime_status_t status = {.state = "in_conversation",
+                                                 .in_conversation = true};
         for (int screen = 0; screen < MYBOT_LCD_SCREEN_COUNT; ++screen) {
             mybot_lcd_content_t content = {(mybot_lcd_screen_t)screen, "000042", 0};
             rv1126b_renderer_update(&content, &status, now);
@@ -138,6 +139,20 @@ int main(void) {
                       lv_obj_get_style_text_font(code, LV_PART_MAIN) == &mybot_pair_font_64);
             }
         }
+        mybot_lcd_content_t provisioning = {MYBOT_LCD_SCREEN_WIFI_PROVISIONING, {0}, 0};
+        memcpy(status.provisioning_ssid, "mybot-abcd", sizeof("mybot-abcd"));
+        rv1126b_renderer_update(&provisioning, &status, now += 100);
+        rv1126b_renderer_step(now += 500);
+        CHECK(rv1126b_renderer_canvas());
+        lv_obj_t *ap_root = lv_display_get_screen_active(lv_display_get_default());
+        CHECK(find_label(ap_root, "mybot-abcd"));
+        CHECK(find_label(ap_root, "http://192.168.4.1"));
+        check_visible_labels(ap_root);
+        status.provisioning_ssid[0] = '\0';
+        rv1126b_renderer_update(&provisioning, &status, now += 100);
+        rv1126b_renderer_step(now += 500);
+        CHECK(rv1126b_renderer_canvas());
+        check_no_unimplemented_portal(ap_root);
         const mybot_lcd_content_t conversation = {MYBOT_LCD_SCREEN_IN_CONVERSATION, {0}, 0};
         rv1126b_renderer_update(&conversation, &status, now);
         rv1126b_renderer_step(now += 1000);

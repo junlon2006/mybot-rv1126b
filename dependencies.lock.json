@@ -1268,8 +1268,8 @@
     "ui/include/mybot_platform/display_status.h": {
       "path": "src/ui/include/mybot_ui/display_status.h",
       "original_sha256": "fe2c1d976fd852db69a43292506253b7909d05206ea4ea5ff183f8145cb56283",
-      "result_sha256": "fe2c1d976fd852db69a43292506253b7909d05206ea4ea5ff183f8145cb56283",
-      "reason": "Native 640x480 Linux view adaptation and component/header relocation; original imported hashes remain immutable. Group maintained UI sources and assets under src/ui while preserving public include namespaces and generated font bytes.",
+      "result_sha256": "c705da396bbd92e87c79f7eba61b1dc17319f55ac6b5a0d58934b6e472c4343e",
+      "reason": "Native 640x480 Linux view adaptation and component/header relocation; original imported hashes remain immutable. Group maintained UI sources and assets under src/ui while preserving public include namespaces and generated font bytes. Add product-owned AP provisioning status and show hotspot guidance only while its portal is active.",
       "previous_paths": [
         "components/mybot_ui/include/mybot_ui/display_status.h"
       ]
@@ -1349,8 +1349,8 @@
     "ui/view/pixel_glasses_view.cc": {
       "path": "src/ui/views/pixel_glasses/pixel_glasses_view.cc",
       "original_sha256": "c128562e29bbd41a7b57556c0adc986cf0800ed89743122460624328050cad57",
-      "result_sha256": "ca99e93f26fe66e4545e93edcb73a1ac2ff619e729df61cc4af40a2987ba6766",
-      "reason": "Native 640x480 Linux view adaptation and component/header relocation; original imported hashes remain immutable. Group maintained UI sources and assets under src/ui while preserving public include namespaces and generated font bytes.",
+      "result_sha256": "1b62028c7b03601041279f8f46b33b54a64631f4b3f739b22c3a663567f6c5c8",
+      "reason": "Native 640x480 Linux view adaptation and component/header relocation; original imported hashes remain immutable. Group maintained UI sources and assets under src/ui while preserving public include namespaces and generated font bytes. Add product-owned AP provisioning status and show hotspot guidance only while its portal is active.",
       "previous_paths": [
         "components/mybot_ui/views/pixel_glasses/pixel_glasses_view.cc"
       ]
@@ -9512,7 +9512,7 @@
         "src/ui/views/pixel_glasses/pixel_expression_shapes.h": "53e5ba308227615afd759567d55075ac22e81bbac1947e9f74982d4c5e155004",
         "src/ui/views/pixel_glasses/pixel_expressions.c": "edaa31dafdee7a6e801b558b9a311bafea3a1d32eea75a0d81ee9a1933fa8b5e",
         "src/ui/views/pixel_glasses/pixel_glasses.h": "9cd9d810d89030ecabd3fac3cddf3087b8425295435114b915726f1a7303dab7",
-        "src/ui/views/pixel_glasses/pixel_glasses_view.cc": "ca99e93f26fe66e4545e93edcb73a1ac2ff619e729df61cc4af40a2987ba6766"
+        "src/ui/views/pixel_glasses/pixel_glasses_view.cc": "1b62028c7b03601041279f8f46b33b54a64631f4b3f739b22c3a663567f6c5c8"
       }
     }
   ],
