@@ -2,15 +2,17 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-面向 **RV1126B TEST2 RK805B V10** 的 MyBot 1.3.0 Linux 应用，提供 HTTPS 配对、双向语音、稳定设备身份与持久化、像素眼镜 UI，以及可选的 V4L2/MPP JPEG 上行。
+面向 **RV1126B TEST2 RK805B V10** 的 MyBot 1.3.0 Linux 应用，提供 AP 配网、HTTPS 配对、双向语音、稳定设备身份与持久化、像素眼镜 UI，以及可选的 V4L2/MPP JPEG 上行。
 
-当前源码为 **0.2.2 源码目录重构候选版**。0.1.0 的语音/UI业务流程和 0.1.1 的文字渲染优化已由用户真机验收；目录重组后的候选版需要重新进行设备回归。可选视频和长时间稳定性专项尚未完成。[验证状态](docs/validation/README.md)是结果的唯一现行入口。
+当前源码为 **0.3.0 AP 配网候选版**。0.1.0 的语音/UI业务流程和 0.1.1 的文字渲染优化已由用户真机验收；AP 配网及当前候选版仍需设备验证。可选视频和长时间稳定性专项尚未完成。[验证状态](docs/validation/README.md)是结果的唯一现行入口。
 
 ## 平台与行为
 
 已记录的设备基线为 AArch64 Buildroot 2024.02、Linux 6.1、glibc 2.41、ALSA、DRM/KMS 和物理 480×640 DSI 屏幕。UI 使用静态 LVGL 9.5、原生 640×480 画布，默认旋转 270°。音频为 16 kHz 单声道 signed-16 PCM、20 ms，开启云端 AEC。
 
-应用复用系统已有网络与 ALSA 配置。当前不包含固件安装、配网、自启动、OTA、本地唤醒/NPU、视频下行或本地摄像头预览。短触或 Menu 键开始/结束会话。运行数据默认保存在 `/userdata/mybot-rv1126b`；升级时保持服务地址与身份配置即可复用绑定。
+应用保留已有可用网络与系统 ALSA 配置。离线时先在 30 秒预算内尝试已保存的 Wi-Fi，再开启开放热点 `mybot-xxxx`；手机连接热点后访问 `http://192.168.4.1/`，可选择 2.4 GHz 网络或手动输入隐藏 SSID。中英文页面支持已保存网络管理、连接进度与失败重试。短触或 Menu 键开始/结束会话；持续按住触屏或 Menu 键 3 秒、或在前台终端输入 `w`，可手动配网。应用先停止 MyBot，再进入配网，完成后恢复启动，详见[配网指南](docs/user/wifi-provisioning.zh-CN.md)。
+
+AP 配网要求目标系统提供 `iw`、`hostapd`、`dnsmasq`、`wpa_supplicant`、`udhcpc`、`ip`，以及支持 nl80211 AP 的驱动。上述工具由目标系统提供，运行包只内置 DHCP hook。优先采用 AP+STA；单接口回退要求应用拥有 STA 的控制权，应用不会全局停止已有网络管理服务。`--no-wifi-provisioning` 可仅监测已有网络。当前不包含固件安装、自启动、OTA、本地唤醒/NPU、视频下行或本地摄像头预览。运行数据默认保存在 `/userdata/mybot-rv1126b`；升级时保持服务地址与身份配置即可复用绑定。
 
 ## 构建与测试
 
@@ -56,7 +58,7 @@ python3 scripts/package-rv1126b.py --profile all --language zh-CN
 
 ## 文档与贡献
 
-- [文档索引](docs/README.md)、[配置](docs/user/configuration.zh-CN.md)、[故障排查](docs/user/troubleshooting.zh-CN.md)
+- [文档索引](docs/README.md)、[配置](docs/user/configuration.zh-CN.md)、[AP 配网](docs/user/wifi-provisioning.zh-CN.md)、[故障排查](docs/user/troubleshooting.zh-CN.md)
 - [架构](docs/development/architecture.zh-CN.md)、[测试](docs/development/testing.zh-CN.md)、[发布流程](docs/development/releasing.zh-CN.md)
 - [依赖目录规则](docs/development/third-party-layout.zh-CN.md)、[源码来源](VENDORED_SOURCES.md)
 - [贡献指南](CONTRIBUTING.zh-CN.md)、[支持](SUPPORT.zh-CN.md)、[变更记录](CHANGELOG.md)

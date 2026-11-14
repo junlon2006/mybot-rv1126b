@@ -70,7 +70,9 @@ def deterministic_archive(directory, archive, epoch):
                         info.type, info.mode = tarfile.DIRTYPE, 0o755
                         tar.addfile(info)
                     else:
-                        info.mode = 0o755 if path.name == "run.sh" or path.parent.name == "bin" else 0o644
+                        executable = (path.name == "run.sh" or path.parent.name == "bin" or
+                                      path.relative_to(directory).as_posix() == "assets/wifi/udhcpc.script")
+                        info.mode = 0o755 if executable else 0o644
                         info.size = path.stat().st_size
                         with path.open("rb") as data:
                             tar.addfile(info, data)
@@ -126,6 +128,9 @@ def package(root, args):
             write_json(staging / ("build-manifest-" + profile + ".json"), public_build)
         shutil.copyfile(baseline["config"]["sdk"]["rtsa_library"], staging / "lib/libagora-rtc-sdk.so")
         shutil.copytree(root / "vendor/mybot/assets/locales", staging / "assets/locales")
+        (staging / "assets/wifi").mkdir()
+        shutil.copyfile(root / "packaging/wifi/udhcpc.script", staging / "assets/wifi/udhcpc.script")
+        (staging / "assets/wifi/udhcpc.script").chmod(0o755)
         launcher = (root / "packaging/run.sh").read_text()
         if args.profile == "video":
             if "${RV1126B_VIDEO:-0}" not in launcher:

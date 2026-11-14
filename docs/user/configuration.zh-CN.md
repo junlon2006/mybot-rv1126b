@@ -13,7 +13,10 @@
 | `--identity-interface IF` | 无 | 以永久出厂 MAC 派生；显式 device-id 优先 |
 | `--capture-device PCM` | `RV1126B_CAPTURE_DEVICE` | `botstation_capture` |
 | `--playback-device PCM` | `RV1126B_PLAYBACK_DEVICE` | `botstation_playback` |
-| `--interface IF` | `RV1126B_INTERFACE` | 空，按可用 IPv4/默认路由监测 |
+| `--interface IF` | `RV1126B_INTERFACE` | 空；SDK 网络监测/路由过滤，不指定 Wi-Fi 配网接口 |
+| `--wifi-interface IF` | `RV1126B_WIFI_INTERFACE` | 空，自动选择 nl80211 无线接口 |
+| `--wifi-provision` | 无 | 启动时强制进入 AP 配网；不能与 UI 演示或禁用配网同时使用 |
+| `--no-wifi-provisioning` | 无 | 仅监测既有网络，禁用自动/手动 AP 配网 |
 | `--input-device PATH` | `RV1126B_INPUT_DEVICE` | `auto`；可选 `none`、`stdin` 或 evdev 路径 |
 | `--touch-device PATH` | `RV1126B_TOUCH_DEVICE` | `auto`；可选 `none` 或 evdev 路径 |
 | `--talk-key CODE` | 无 | 139（KEY_MENU），音量/左右键不能用作会话键 |
@@ -38,11 +41,13 @@
 
 CPU Serial 经规范化和 HMAC-SHA256 派生为 `RV1126B-` 加 24 位大写十六进制字符。`--identity-interface` 只接受稳定的永久 MAC；不能证明永久地址时失败。显式 `--device-id` 优先于身份派生。
 
-身份算法、KV 目录及服务配置是升级兼容边界。0.1.0、0.1.1 与 0.2.0 候选版保持相同策略；不要为了升级而删除目录、改身份来源或重新创建 ID。目录保存绑定凭据及 RTSA 日志，不与原厂服务共享。备份和反馈日志时避免公开凭据。
+身份算法、KV 目录及服务配置是升级兼容边界。0.1.0、0.1.1 与 0.2.0 候选版保持相同策略；不要为了升级而删除目录、改身份来源或重新创建 ID。目录保存绑定凭据、Wi-Fi 派生密钥及 RTSA 日志，不与原厂服务共享。Wi-Fi 最多缓存 10 个网络，保存于私有的 `wifi/wifi.credentials`（0600），上级目录为 0700。开放网络不保存密码；加密网络保存派生 PSK，仍应按凭据保护。只有连接并获得可用 IPv4 和路由后才保存候选网络；失败不覆盖已有配置。备份和反馈日志时避免公开凭据。
 
 ## 输入及音视频契约
 
-短触有效时长为 50–999 ms；长按不触发配网。Menu 切换会话，左右键减/增音量。前台终端输入 `s/q/p/u/d/e` 后 Enter，分别开始、挂断、重新配对、音量增/减及退出。到达 ready 后需显式开始会话。
+短触有效时长为 50–999 ms；持续按住触屏或 Menu 键 3 秒请求 AP 配网，释放后不再触发会话切换。Menu 短按切换会话，左右键减/增音量。前台终端输入 `s/q/p/u/d/w/e` 后 Enter，分别开始、挂断、重新配对、音量增/减、Wi-Fi 配网及退出。到达 ready 后需显式开始会话。
+
+默认启动保留已有可用网络；没有网络时在总计 30 秒内尝试已保存网络，失败或没有配置时进入 AP。手动配网会先停止 SDK/会话再开启热点，完成后恢复 SDK。`--wifi-interface` 与 SDK 的 `--interface` 职责不同，双网卡环境可分别设置；后者若显式过滤到另一无网络接口，仍会阻止 SDK 就绪。完整操作及运行依赖见[配网指南](wifi-provisioning.zh-CN.md)。
 
 SDK 音频固定为 16 kHz、单声道 S16、20 ms，开启云端 AEC。当前 ALSA plug 负责与 48 kHz 双声道硬件转换。改变时长必须同时取得匹配 RTSA 包并更新校验记录。
 

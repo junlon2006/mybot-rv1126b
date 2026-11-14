@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <getopt.h>
 #include <linux/input.h>
+#include <net/if.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,6 +36,9 @@ static void usage(const char *program) {
         "  --capture-device PCM     default: botstation_capture\n"
         "  --playback-device PCM    default: botstation_playback\n"
         "  --interface IF           network interface filter (default: routed IPv4)\n"
+        "  --wifi-interface IF      Wi-Fi station interface (default: auto)\n"
+        "  --wifi-provision         enter AP Wi-Fi setup before starting services\n"
+        "  --no-wifi-provisioning   monitor existing networking without AP setup\n"
         "  --input-device PATH      auto, none, stdin, or /dev/input/eventN\n"
         "  --touch-device PATH      auto, none, or /dev/input/eventN\n"
         "  --talk-key CODE          default: 139 (KEY_MENU); left/right adjust volume\n"
@@ -46,7 +50,8 @@ static void usage(const char *program) {
         "  --help / --version       no hardware access or file creation\n"
         "Environment: RV1126B_SERVER, RV1126B_DEVICE_ID, RV1126B_INTERFACE,\n"
         "RV1126B_INPUT_DEVICE, RV1126B_TOUCH_DEVICE, MYBOT_KV_STORE_DIR,\n"
-        "MYBOT_ASSETS_DIR, MYBOT_LOCALE; stdin s/q/p/u/d/e then Enter.\n",
+        "RV1126B_WIFI_INTERFACE, MYBOT_ASSETS_DIR, MYBOT_LOCALE;\n"
+        "stdin s/q/p/u/d/w/e then Enter; hold touch/menu 3 s for Wi-Fi setup.\n",
         program);
 }
 
@@ -74,6 +79,8 @@ int rv1126b_app_config_parse(int argc, char **argv, rv1126b_app_config_t *out) {
     const char *drm = RV1126B_BOARD_DRM;
     unsigned int rotation = RV1126B_BOARD_ROTATION, seconds = 0;
     bool demo = false;
+    bool wifi_provisioning = true, force_wifi_provisioning = false;
+    const char *wifi_interface = environment("RV1126B_WIFI_INTERFACE", "");
     enum {
         OPT_SERVER = 1000,
         OPT_ID,
@@ -81,6 +88,9 @@ int rv1126b_app_config_parse(int argc, char **argv, rv1126b_app_config_t *out) {
         OPT_CAPTURE,
         OPT_PLAYBACK,
         OPT_INTERFACE,
+        OPT_WIFI_INTERFACE,
+        OPT_WIFI_PROVISION,
+        OPT_NO_WIFI_PROVISION,
         OPT_INPUT,
         OPT_TOUCH,
         OPT_KEY,
@@ -99,6 +109,9 @@ int rv1126b_app_config_parse(int argc, char **argv, rv1126b_app_config_t *out) {
         {"capture-device", required_argument, NULL, OPT_CAPTURE},
         {"playback-device", required_argument, NULL, OPT_PLAYBACK},
         {"interface", required_argument, NULL, OPT_INTERFACE},
+        {"wifi-interface", required_argument, NULL, OPT_WIFI_INTERFACE},
+        {"wifi-provision", no_argument, NULL, OPT_WIFI_PROVISION},
+        {"no-wifi-provisioning", no_argument, NULL, OPT_NO_WIFI_PROVISION},
         {"input-device", required_argument, NULL, OPT_INPUT},
         {"touch-device", required_argument, NULL, OPT_TOUCH},
         {"talk-key", required_argument, NULL, OPT_KEY},
@@ -130,6 +143,15 @@ int rv1126b_app_config_parse(int argc, char **argv, rv1126b_app_config_t *out) {
             break;
         case OPT_INTERFACE:
             platform.network_interface = optarg;
+            break;
+        case OPT_WIFI_INTERFACE:
+            wifi_interface = optarg;
+            break;
+        case OPT_WIFI_PROVISION:
+            force_wifi_provisioning = true;
+            break;
+        case OPT_NO_WIFI_PROVISION:
+            wifi_provisioning = false;
             break;
         case OPT_INPUT:
             platform.input_device = optarg;
@@ -171,6 +193,12 @@ int rv1126b_app_config_parse(int argc, char **argv, rv1126b_app_config_t *out) {
     }
     if (optind != argc || (demo && !platform.enable_ui))
         goto invalid;
+    if (strlen(wifi_interface) >= IFNAMSIZ ||
+        strspn(wifi_interface,
+               "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-") !=
+            strlen(wifi_interface) ||
+        (!wifi_provisioning && force_wifi_provisioning) || (demo && force_wifi_provisioning))
+        goto invalid;
     if (!platform.talk_key || platform.talk_key == KEY_VOLUMEUP ||
         platform.talk_key == KEY_VOLUMEDOWN || platform.talk_key == KEY_LEFT ||
         platform.talk_key == KEY_RIGHT)
@@ -184,6 +212,9 @@ int rv1126b_app_config_parse(int argc, char **argv, rv1126b_app_config_t *out) {
         .rotation = rotation,
         .seconds = seconds,
         .demo = demo,
+        .wifi_provisioning = wifi_provisioning,
+        .force_wifi_provisioning = force_wifi_provisioning,
+        .wifi_interface = wifi_interface,
     };
     return 0;
 invalid:

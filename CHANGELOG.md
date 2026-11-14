@@ -2,6 +2,17 @@
 
 Changes to project-maintained code follow Semantic Versioning. Validation evidence is maintained in [one matrix](docs/validation/README.md); a release entry does not imply hardware acceptance.
 
+## 0.3.0 — Unreleased
+
+- Add native AP Wi-Fi setup with an open `mybot-xxxx` hotspot, captive DNS and a bilingual mobile page at `192.168.4.1`.
+- Support nearby and hidden networks, asynchronous connection/retry, saved-network default/deletion, and up to 10 private profiles containing derived PSKs.
+- Preserve an existing usable network; try cached profiles before AP setup, and persist candidates only after routed IPv4 connectivity is available.
+- Add 3-second touch/Menu hold and terminal `w` for manual setup, stopping MyBot before AP entry and restarting it after completion.
+- Add explicit Wi-Fi interface/force/disable CLI options, AP+STA preference with safe station ownership checks, and a bundled DHCP hook. Target-side network tools and driver support remain required.
+- Add host controller/backend/protocol checks, input/UI coverage and a hardware verification guide.
+
+This AP Wi-Fi setup candidate requires hardware testing; host and cross-build evidence does not establish target radio or DHCP behavior.
+
 ## 0.2.2 — Unreleased
 
 - Group maintained code under `src/application/`, `src/platform/` and `src/ui/`, and pinned dependencies under `vendor/`.

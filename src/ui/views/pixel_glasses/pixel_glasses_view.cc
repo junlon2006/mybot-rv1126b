@@ -604,7 +604,14 @@ void mybot_pixel_glasses_update(const mybot_lcd_content_t *content, const char *
         show_guide(kScreens[content->screen]);
         if (provisioning) {
             std::memcpy(s_view->provisioning_ssid, copied_ssid, sizeof(s_view->provisioning_ssid));
-            lv_label_set_text_static(s_view->detail, s_view->provisioning_ssid);
+            if (copied_ssid[0]) {
+#if CONFIG_MYBOT_LANGUAGE_ZH_CN
+                show_guide({s_view->provisioning_ssid, "请连接设备热点", kGreeting});
+#else
+                show_guide({s_view->provisioning_ssid, "Connect to device Wi-Fi", kGreeting});
+#endif
+            }
+            lv_label_set_text_static(s_view->detail, copied_ssid[0] ? "http://192.168.4.1" : "");
             set_hidden(s_view->detail, !copied_ssid[0]);
         }
         if (pairing_code) {

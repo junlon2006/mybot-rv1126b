@@ -62,6 +62,16 @@ target_include_directories(test-network-lifecycle PRIVATE support/mocks
 target_link_libraries(test-network-lifecycle PRIVATE mybot::public_headers Threads::Threads)
 add_test(NAME network-lifecycle COMMAND test-network-lifecycle)
 
+foreach(part backend portal service)
+    add_executable(test-wifi-${part} unit/test_wifi_${part}.cc)
+    target_include_directories(test-wifi-${part} PRIVATE "${support_dir}"
+        "${platform_root}/src/services/wifi")
+    target_link_libraries(test-wifi-${part} PRIVATE mybot_wifi)
+    target_compile_options(test-wifi-${part} PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+    add_test(NAME wifi-${part} COMMAND test-wifi-${part})
+    set_tests_properties(wifi-${part} PROPERTIES TIMEOUT 30)
+endforeach()
+
 foreach(target test-pixels test-input test-input-worker test-renderer test-identity test-ui-runtime test-drm test-config test-runtime-guard test-audio-lifecycle test-network-lifecycle)
     target_include_directories(${target} PRIVATE "${support_dir}")
     target_compile_options(${target} PRIVATE -Wall -Wextra -Werror -UNDEBUG)

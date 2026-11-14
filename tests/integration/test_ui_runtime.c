@@ -10,6 +10,7 @@
 static pthread_mutex_t test_lock = PTHREAD_MUTEX_INITIALIZER;
 static int failure, started, stopped, renders;
 static char last_code[16];
+static char last_ssid[33];
 int rv1126b_drm_start(const char *path, unsigned rotation) {
     CHECK(!strcmp(path, "mock") && rotation == 270);
     ++started;
@@ -35,10 +36,10 @@ void rv1126b_renderer_destroy(void) {
 }
 void rv1126b_renderer_update(const mybot_lcd_content_t *content,
                              const mybot_display_runtime_status_t *status, uint32_t now) {
-    (void)status;
     (void)now;
     pthread_mutex_lock(&test_lock);
     memcpy(last_code, content->pair_code, sizeof(last_code));
+    memcpy(last_ssid, status->provisioning_ssid, sizeof(last_ssid));
     ++renders;
     pthread_mutex_unlock(&test_lock);
 }
@@ -64,6 +65,9 @@ int main(void) {
         CHECK(rv1126b_ui_start("mock", 270) < 0);
         void *ctx;
         CHECK(rv1126b_ui_lcd_ops()->init(&ctx) == 0);
+        char ssid[] = "mybot-abcd";
+        rv1126b_ui_provisioning(ssid);
+        memset(ssid, 'x', sizeof(ssid) - 1);
         mybot_lcd_content_t content = {MYBOT_LCD_SCREEN_PAIR_CODE, "000042", 0};
         CHECK(rv1126b_ui_lcd_ops()->render(ctx, &content) == 0);
         memset(content.pair_code, 'x', sizeof(content.pair_code));
@@ -71,7 +75,7 @@ int main(void) {
         bool copied = false;
         for (int attempt = 0; attempt < 1000 && !copied; ++attempt) {
             pthread_mutex_lock(&test_lock);
-            copied = strcmp(last_code, "000042") == 0;
+            copied = strcmp(last_code, "000042") == 0 && strcmp(last_ssid, "mybot-abcd") == 0;
             pthread_mutex_unlock(&test_lock);
             if (!copied)
                 nanosleep(&pause, NULL);

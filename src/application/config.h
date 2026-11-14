@@ -13,6 +13,9 @@ typedef struct {
     unsigned int rotation;
     unsigned int seconds;
     bool demo;
+    bool wifi_provisioning;
+    bool force_wifi_provisioning;
+    const char *wifi_interface;
 } rv1126b_app_config_t;
 
 /* Borrows argv/environment strings for process lifetime. No I/O except help/error
