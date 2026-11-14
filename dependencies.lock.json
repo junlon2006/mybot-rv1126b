@@ -1358,8 +1358,8 @@
     "platforms/rv1126b/rv1126b_audio.c": {
       "path": "src/platform/src/drivers/audio/alsa_audio.c",
       "original_sha256": "88c94f27001bd114fe44ee141ca7a2d48074614c01b604160da456546ce0ed59",
-      "result_sha256": "112ea533bc1ce3ffd4b1d040e7b94f2eab197f485a44dc401caf19d0e31481a1",
-      "reason": "RV1126B Linux driver/service adaptation; move into its component, use internal headers and centralized board defaults. Group maintained Linux board drivers and services under src/platform while preserving public include namespaces. Apply product-owned persistent output gain to a separate PCM buffer at the ALSA boundary; preserve borrowed SDK PCM and partial-write accounting.",
+      "result_sha256": "cc5efe6c2de540bb62c2d820296010d50b3b26937d4ae2b0727658232f92af08",
+      "reason": "RV1126B Linux driver/service adaptation; move into its component, use internal headers and centralized board defaults. Group maintained Linux board drivers and services under src/platform while preserving public include namespaces. Apply product-owned persistent output gain to a separate PCM buffer at the ALSA boundary; preserve borrowed SDK PCM and partial-write accounting. Add bounded nonblocking drain for product-owned Wi-Fi prompt playback.",
       "previous_paths": [
         "components/mybot_platform/src/drivers/audio/alsa_audio.c"
       ]

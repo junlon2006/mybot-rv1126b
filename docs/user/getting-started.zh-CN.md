@@ -1,6 +1,6 @@
 # 上手、升级与回退
 
-当前候选版为 0.3.1，目标为 RV1126B TEST2 RK805B V10 的现有 AArch64 Buildroot 系统。已验收版本和候选版的检查范围见[验证状态](../validation/README.md)。源码构建见[构建指南](build.zh-CN.md)。
+当前候选版为 0.3.2，目标为 RV1126B TEST2 RK805B V10 的现有 AArch64 Buildroot 系统。已验收版本和候选版的检查范围见[验证状态](../validation/README.md)。源码构建见[构建指南](build.zh-CN.md)。
 
 ## 设备条件
 
@@ -15,7 +15,7 @@
 在主机仓库根目录执行：
 
 ```sh
-adb push dist/mybot-rv1126b-0.3.1-aarch64.tar.gz /userdata/
+adb push dist/mybot-rv1126b-0.3.2-aarch64.tar.gz /userdata/
 adb shell
 ```
 
@@ -23,13 +23,13 @@ adb shell
 
 ```sh
 cd /userdata
-tar -xzf mybot-rv1126b-0.3.1-aarch64.tar.gz
-cd mybot-rv1126b-0.3.1-aarch64
+tar -xzf mybot-rv1126b-0.3.2-aarch64.tar.gz
+cd mybot-rv1126b-0.3.2-aarch64
 sha256sum -c SHA256SUMS
 ./run.sh --version
 ```
 
-校验应全部为 `OK`，版本为 0.3.1，语言和视频标志与所选程序一致。英文包、单配置包的名称不同，以实际交付文件名为准。包内包括程序、RTSA、提示音、来源/许可、构建 manifest、ABI 报告和校验清单。无需覆盖 `/usr/bin`、`/usr/lib`、ALSA 配置或开机脚本。
+校验应全部为 `OK`，版本为 0.3.2，语言和视频标志与所选程序一致。英文包、单配置包的名称不同，以实际交付文件名为准。包内包括程序、RTSA、提示音、来源/许可、构建 manifest、ABI 报告和校验清单。无需覆盖 `/usr/bin`、`/usr/lib`、ALSA 配置或开机脚本。
 
 如果原厂服务仍在运行，由操作者停止它：
 
@@ -51,6 +51,8 @@ UI 演示循环 23 种表情，不启动 SDK、网络、音频或摄像头。检
 完整启动保留已有可用网络；离线时先尝试已保存网络，失败则显示 `mybot-xxxx` 热点与 `192.168.4.1` 配网入口。手机连接热点后在浏览器选择网络、输入密码并等待连接完成，详见[AP 配网](wifi-provisioning.zh-CN.md)。联网与系统时间就绪后，未绑定时显示并播报配对码。在服务控制台认领后进入 ready；短触（50–999 ms）、Menu 键或输入 `s` 后 Enter 开始会话，再次短触/Menu 或 `q` 挂断。不会自动开聊。`u/d` 调音量、`p` 重新配对、`w` 进入 Wi-Fi 配网、`e` 退出。持续按住触屏或 Menu 键 3 秒也可进入配网，当前会话先结束。Ctrl-C/SIGTERM 结束程序。
 
 本候选版还需按[配网设备验收步骤](wifi-provisioning.zh-CN.md#设备验证)检查首次配网、错误密码重试、保存后重启以及会话中切换配网。已有网络的正常启动应保持原连接，不能因启动应用而无故开启热点。
+
+热点与门户就绪后会播放一次配网语音，使用已保存音量；静音时不发声。请在不操作页面的情况下确认播报完整，再检查错误密码重试不重复播报、成功联网后恢复 SDK，以及播报期间退出后声卡可重新使用。提示音语言由 `MYBOT_LOCALE=zh-CN` 或 `MYBOT_LOCALE=en-US` 选择；切换手机页面语言不会改变设备语音。提示音失败不应阻止手机继续配网。
 
 如已有绑定，确认升级无需重新配对。重复开始/挂断，检查双向语音、状态与表情、退出后再次启动。需要隔离显示问题时用 `./run.sh --no-ui`。其余选项和身份规则见[配置](configuration.zh-CN.md)。
 

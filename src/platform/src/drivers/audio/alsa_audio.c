@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #define _POSIX_C_SOURCE 200809L
 #include "platform_internal.h"
+#include "mybot_platform/audio.h"
 #include "mybot_platform/volume.h"
 
 #include <alsa/asoundlib.h>
@@ -380,6 +381,37 @@ static int playback_write(void *opaque, const void *buffer, int frames) {
         ctx->max_write_gap_ms = 0;
         ctx->playback_recoveries = 0;
         ctx->playback_peak = 0;
+    }
+    pthread_mutex_unlock(&ctx->lock);
+    return result;
+}
+
+int rv1126b_playback_drain(void *opaque, unsigned int timeout_ms) {
+    pcm_context_t *ctx = opaque;
+    if (!ctx || ctx->capture || timeout_ms == 0 || timeout_ms > 1000)
+        return -1;
+    uint64_t start = tick_ms();
+    if (!start)
+        return -1;
+    const uint64_t deadline = start + timeout_ms;
+    pthread_mutex_lock(&ctx->lock);
+    int result = -1;
+    while (ctx->running) {
+        int err = snd_pcm_drain(ctx->pcm);
+        if (err == 0) {
+            ctx->running = false;
+            result = 0;
+            break;
+        }
+        if (err != -EAGAIN && err != -EINTR)
+            break;
+        uint64_t now = tick_ms();
+        if (!now || now >= deadline)
+            break;
+        const struct timespec pause = {.tv_sec = 0, .tv_nsec = 1000000};
+        pthread_mutex_unlock(&ctx->lock);
+        nanosleep(&pause, NULL);
+        pthread_mutex_lock(&ctx->lock);
     }
     pthread_mutex_unlock(&ctx->lock);
     return result;

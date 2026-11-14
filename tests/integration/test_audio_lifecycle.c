@@ -28,6 +28,8 @@ static snd_pcm_sframes_t read_script[8], write_script[8];
 static size_t read_count, read_index, write_count, write_index;
 static int16_t written_samples[640];
 static size_t written_count;
+static int drain_error;
+static unsigned drain_calls, drain_again;
 static void *stop_during_wait;
 static const rv1126b_platform_config_t config = {.capture_device = "mock-capture",
                                                  .playback_device = "mock-playback"};
@@ -218,6 +220,15 @@ int snd_pcm_prepare(snd_pcm_t *pcm) {
 int snd_pcm_drop(snd_pcm_t *pcm) {
     CHECK(pcm == &hardware && pcm->open);
     return drop_error;
+}
+int snd_pcm_drain(snd_pcm_t *pcm) {
+    CHECK(pcm == &hardware && pcm->open);
+    ++drain_calls;
+    if (drain_again) {
+        --drain_again;
+        return -EAGAIN;
+    }
+    return drain_error;
 }
 snd_pcm_sframes_t snd_pcm_readi(snd_pcm_t *pcm, void *buffer, snd_pcm_uframes_t frames) {
     CHECK(pcm == &hardware && pcm->open);
@@ -440,11 +451,42 @@ static void test_playback_recovery_and_deadline(void) {
     CHECK(rmdir(storage) == 0);
 }
 
+static void test_playback_drain(void) {
+    const mybot_audio_playback_ops_t *ops = rv1126b_playback_ops();
+    void *ctx = NULL;
+    CHECK(ops->init(&ctx, 16000, 1, 16) == 0 && ops->start(ctx) == 0);
+    CHECK(rv1126b_playback_drain(NULL, 100) < 0);
+    CHECK(rv1126b_playback_drain(ctx, 0) < 0);
+    CHECK(rv1126b_playback_drain(ctx, 1001) < 0);
+    drain_again = 2;
+    unsigned calls = drain_calls;
+    CHECK(rv1126b_playback_drain(ctx, 100) == 0 && drain_calls == calls + 3);
+    int16_t samples[320] = {0};
+    calls = write_calls;
+    CHECK(ops->write(ctx, samples, 320) == 0 && calls == write_calls);
+    CHECK(ops->start(ctx) == 0);
+    drain_again = 1000;
+    uint64_t started = fake_ms;
+    CHECK(rv1126b_playback_drain(ctx, 100) < 0);
+    CHECK(fake_ms - started >= 100 && fake_ms - started <= 105);
+    drain_again = 0;
+    drain_error = -EIO;
+    CHECK(rv1126b_playback_drain(ctx, 100) < 0);
+    drain_error = 0;
+    stop_during_wait = ctx;
+    drain_again = 1;
+    CHECK(rv1126b_playback_drain(ctx, 100) < 0 && stop_during_wait == NULL);
+    CHECK(ops->stop(ctx) == 0);
+    ops->destroy(ctx);
+    check_released();
+}
+
 int main(void) {
     CHECK(MYBOT_AUDIO_PTIME_MS == 20);
     test_partial_initialization();
     test_capture_deadline_and_stop();
     test_playback_recovery_and_deadline();
+    test_playback_drain();
     puts("ALSA ownership, bounded I/O, recovery and persistent output gain: PASS");
     return 0;
 }

@@ -31,7 +31,7 @@
 | --- | --- |
 | `MYBOT_KV_STORE_DIR` | 默认 `/userdata/mybot-rv1126b`，必须为当前用户拥有的私有绝对路径（0700） |
 | `MYBOT_ASSETS_DIR` | 默认包内 `assets/`；绝对路径 |
-| `MYBOT_LOCALE` | 提示音 locale，默认与 UI 构建语言相同；不会替换编译字库/UI文案 |
+| `MYBOT_LOCALE` | 提示音 locale，包括 AP 配网语音；默认与 UI 构建语言相同，包内提供 `zh-CN`、`en-US`；不会替换编译字库/UI文案 |
 | `RV1126B_VIDEO` | 由 `run.sh` 读取，0 选语音程序，1 选视频程序 |
 | `RV1126B_VIDEO_DEVICE` | 视频程序指定相机节点，默认自动寻找唯一 `rkisp_mainpath` |
 
@@ -48,6 +48,8 @@ CPU Serial 经规范化和 HMAC-SHA256 派生为 `RV1126B-` 加 24 位大写十�
 短触有效时长为 50–999 ms；持续按住触屏或 Menu 键 3 秒请求 AP 配网，释放后不再触发会话切换。Menu 短按切换会话，左右键减/增音量。前台终端输入 `s/q/p/u/d/w/e` 后 Enter，分别开始、挂断、重新配对、音量增/减、Wi-Fi 配网及退出。到达 ready 后需显式开始会话。
 
 默认启动保留已有可用网络；没有网络时在总计 30 秒内尝试已保存网络，失败或没有配置时进入 AP。手动配网会先停止 SDK/会话再开启热点，完成后恢复 SDK。`--wifi-interface` 与 SDK 的 `--interface` 职责不同，双网卡环境可分别设置；后者若显式过滤到另一无网络接口，仍会阻止 SDK 就绪。完整操作及运行依赖见[配网指南](wifi-provisioning.zh-CN.md)。
+
+AP 热点与 HTTP/DNS 门户真正就绪后，每次配网流程播放一次 `MYBOT_ASSETS_DIR/locales/<MYBOT_LOCALE>/wificonfig.pcm`，使用配置的播放设备和已保存输出音量，0 音量时不发声。同一流程内刷新页面或错误密码重试不重复播报；再次主动进入配网会重新播放。离开 AP 或退出应用会取消提示音并等待声卡释放，之后才可恢复 SDK 音频。资源、声卡或播放失败会报告错误，但不阻止手机继续配网。
 
 SDK 音频固定为 16 kHz、单声道 S16、20 ms，开启云端 AEC。当前 ALSA plug 负责与 48 kHz 双声道硬件转换。改变时长必须同时取得匹配 RTSA 包并更新校验记录。
 

@@ -48,6 +48,7 @@ flowchart TD
 | `src/platform/src/drivers/` | ALSA、evdev、DRM、像素旋转及可选视频硬件边界 |
 | `src/platform/src/services/` | 网络监测、显示 worker 等 Linux 服务 |
 | `src/platform/src/services/audio_volume.c` | 输出音量状态、私有持久化和 MyBot 设备音量适配；播放驱动在写入 ALSA 前应用一次增益 |
+| `src/platform/src/services/audio_prompt.c` | SDK 停机期间的独立 PCM 播放 worker、取消和声卡回收；不接管业务会话 |
 | `src/platform/src/services/wifi/` | 独立 Wi-Fi 控制线程、AP HTTP/DNS 门户、Linux 网络后端及私有凭据存储 |
 | `src/ui/src/` | 固定画布 renderer、状态与表情策略 |
 | `src/ui/views/pixel_glasses/` | 视图、图形、遮罩及对应来源声明 |
@@ -69,6 +70,8 @@ UI 通过 present 回调交付画布，不依赖 DRM、ALSA、MPP 或 pthread。
 显示 worker 在自身执行上下文调用 LVGL；renderer 接收有界状态副本。DRM backend 拥有 fd、buffers 和原显示状态，失败/正常退出时释放并恢复已保存的原输出。音频采集与播放维持各自生命周期，不能释放仍被回调使用的对象。视频初始化与启动分开，停止后不继续提交借用帧。
 
 平台音量服务通过 `mybot_platform/volume.h` 在 SDK 初始化前恢复保存值，并通过 MyBot 公共设备音量接口接入按键、终端和 RTM 控制。SDK 不再重复缩放输出，平台播放驱动在写入 ALSA 前对副本应用一次增益；原始 PCM、采集路径和系统 mixer 不变。云端 AEC 参考音频保留设备音量之前的信号，符合设备音量的接口语义，实际回声消除效果仍需真机回归。音量服务不随 SDK 停启销毁，因此手动配网不会重置音量。设置采用私有的 `MYBOT_KV_STORE_DIR/volume.settings`（0600）原子保存，只有持久化成功才发布新增益。
+
+AP 提示音由产品生命周期通过 `mybot_platform/prompt.h` 触发，只有无线后端和门户均确认 active 才启动一次独立播放 worker，按 `MYBOT_LOCALE` 从资源目录读取 `wificonfig.pcm`。同一配网流程内的连接失败、页面刷新或单接口热点恢复不重新播报。提示音复用平台播放驱动与保存音量；SDK 和提示音不同时拥有声卡。离开 AP、退出或恢复 SDK 前先取消、等待 worker 退出并回收播放资源；提示音失败只报告错误，不将可用的 AP 配网标记为失败。
 
 原厂 `botstation-device` 和本应用共享硬件；进程检查与锁共同阻止并行占用。设备现有 ISP、时间及外部网络管理服务不归本应用销毁。Wi-Fi 后端只停止本应用创建的子进程/虚拟接口，已附着的外部 supplicant 不被全局停止。`/userdata/mybot-rv1126b` 保留绑定凭据，与版本解包目录分离。
 

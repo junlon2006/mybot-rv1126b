@@ -9,6 +9,7 @@
 #include "mybot_platform/display.h"
 #include "mybot_platform/wifi.h"
 #include "mybot_platform/volume.h"
+#include "mybot_platform/prompt.h"
 #include "mybot_ui/expression.h"
 
 #include <errno.h>
@@ -229,10 +230,20 @@ int main(int argc, char **argv) {
         rv1126b_ui_set_state(MYBOT_STATE_WIFI_PROVISIONING);
         rv1126b_ui_show(&waiting);
         int last_wifi_state = -1;
+        /* One announcement per setup session, including single-radio retries
+         * that temporarily stop and then restore the same AP. */
+        bool prompt_announced = false;
         fprintf(stdout, "Waiting for usable IPv4 routing and system time\n");
         while (!s_exit && monotonic_ms() < deadline) {
             rv1126b_wifi_status_t status = {0};
             rv1126b_wifi_status(&status);
+            if (status.ap_active && !prompt_announced) {
+                prompt_announced = true;
+                if (rv1126b_prompt_start(getenv("MYBOT_ASSETS_DIR"), getenv("MYBOT_LOCALE")) < 0)
+                    fprintf(stderr, "Cannot start Wi-Fi setup voice guidance\n");
+            } else if (!status.ap_active) {
+                rv1126b_prompt_stop();
+            }
             if ((int)status.state != last_wifi_state) {
                 fprintf(stdout, "Wi-Fi state=%d%s%s\n", status.state, status.error[0] ? ": " : "",
                         status.error);
@@ -258,6 +269,7 @@ int main(int argc, char **argv) {
         if (s_exit || monotonic_ms() >= deadline)
             goto cleanup;
         rv1126b_ui_provisioning(NULL);
+        rv1126b_prompt_stop();
         if (mybot_start(&config) < 0) {
             fprintf(stderr, "MyBot startup failed\n");
             failed = 1;
@@ -298,6 +310,7 @@ int main(int argc, char **argv) {
         rv1126b_wifi_request_provisioning();
     }
 cleanup:
+    rv1126b_prompt_stop();
     if (sdk_started)
         stop_sdk();
     if (wifi_started)

@@ -2,6 +2,15 @@
 
 Changes to project-maintained code follow Semantic Versioning. Validation evidence is maintained in [one matrix](docs/validation/README.md); a release entry does not imply hardware acceptance.
 
+## 0.3.2 — Unreleased
+
+- Play the bundled localized Wi-Fi guidance once per setup session, only after the AP and portal are ready; connection retries do not repeat it.
+- Apply saved output volume to guidance, including mute, through the same playback adapter used by MyBot.
+- Keep the prompt worker mutually exclusive with SDK audio; cancel and release playback when leaving AP setup or exiting before restarting MyBot.
+- Report guidance failures without disabling the AP portal, and document target checks for complete playback, retry behavior and audio cleanup.
+
+This AP voice-guidance candidate requires hardware audio and Wi-Fi regression testing.
+
 ## 0.3.1 — Unreleased
 
 - Connect MyBot device-volume controls to a platform playback-gain adapter, applying output gain once without changing capture gain or system mixer settings.
