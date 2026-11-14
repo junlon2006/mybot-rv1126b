@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #define _POSIX_C_SOURCE 200809L
 #include "platform_internal.h"
+#include "mybot_platform/volume.h"
 
 #include <alsa/asoundlib.h>
 #include <alloca.h>
@@ -136,7 +137,14 @@ static int pcm_init(void **out, int rate, int channels, int bits, snd_pcm_stream
     const rv1126b_platform_config_t *config = rv1126b_platform_config();
     const char *device =
         stream == SND_PCM_STREAM_CAPTURE ? config->capture_device : config->playback_device;
-    err = snd_pcm_open(&ctx->pcm, device, stream, SND_PCM_NONBLOCK);
+    if (!ctx->capture) {
+        ctx->capacity = 16000 * MYBOT_AUDIO_PTIME_MS / 1000;
+        ctx->pending = calloc(ctx->capacity, sizeof(*ctx->pending));
+        if (!ctx->pending)
+            err = -ENOMEM;
+    }
+    if (err >= 0)
+        err = snd_pcm_open(&ctx->pcm, device, stream, SND_PCM_NONBLOCK);
     if (err >= 0) {
         /* ALSA plug devices may resample hardware, but the SDK-facing rate stays exact. */
         err = configure_period(ctx);
@@ -147,6 +155,7 @@ static int pcm_init(void **out, int rate, int channels, int bits, snd_pcm_stream
             snd_pcm_close(ctx->pcm);
         }
         pthread_mutex_destroy(&ctx->lock);
+        free(ctx->pending);
         free(ctx);
         return -1;
     }
@@ -289,10 +298,23 @@ static int playback_write(void *opaque, const void *buffer, int frames) {
     if (ctx->running) {
         ctx->last_write_ms = start;
     }
+    if (ctx->running && (size_t)frames > ctx->capacity) {
+        int16_t *scaled = realloc(ctx->pending, (size_t)frames * sizeof(*scaled));
+        if (!scaled) {
+            pthread_mutex_unlock(&ctx->lock);
+            return -1;
+        }
+        ctx->pending = scaled;
+        ctx->capacity = (size_t)frames;
+    }
     bool retried = false;
     while (ctx->running && result < frames) {
-        snd_pcm_sframes_t written = snd_pcm_writei(ctx->pcm, (const int16_t *)buffer + result,
-                                                   (snd_pcm_uframes_t)(frames - result));
+        /* Keep borrowed SDK PCM unchanged for its AEC reference and retries.
+         * Each unaccepted suffix is scaled once using the current output level. */
+        rv1126b_volume_scale(ctx->pending, (const int16_t *)buffer + result,
+                             (size_t)(frames - result));
+        snd_pcm_sframes_t written =
+            snd_pcm_writei(ctx->pcm, ctx->pending, (snd_pcm_uframes_t)(frames - result));
         if (written < 0 && written != -EAGAIN) {
             if (written == -EPIPE || written == -ESTRPIPE) {
                 ++ctx->playback_recoveries;
@@ -314,7 +336,7 @@ static int playback_write(void *opaque, const void *buffer, int frames) {
             break;
         }
         if (written > 0) {
-            const int16_t *samples = (const int16_t *)buffer + result;
+            const int16_t *samples = ctx->pending;
             for (snd_pcm_sframes_t i = 0; i < written; ++i) {
                 int magnitude = samples[i] < 0 ? -(int)samples[i] : (int)samples[i];
                 if (magnitude > ctx->playback_peak) {

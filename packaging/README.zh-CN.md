@@ -1,6 +1,6 @@
 # MyBot RV1126B 运行包
 
-本包用于 RV1126B TEST2 RK805B V10 的现有 AArch64 Buildroot 系统。0.3.0 为 AP 配网候选，需重新进行真机回归；此前 0.1.0 语音/UI与 0.1.1 显示优化已由用户验收。可选视频和长期专项尚未完成。
+本包用于 RV1126B TEST2 RK805B V10 的现有 AArch64 Buildroot 系统。0.3.1 为音量持久化候选，AP 配网与音量均需真机回归；此前 0.1.0 语音/UI与 0.1.1 显示优化已由用户验收。可选视频和长期专项尚未完成。
 
 ## 校验与运行
 
@@ -39,7 +39,11 @@ UI 为 640×480，默认旋转 270°到物理 480×640 屏；调整方向可加 
 
 ## 音视频及内容
 
-音频使用既有 `botstation_capture` / `botstation_playback`，SDK 为 16 kHz mono S16、20 ms、Cloud AEC。`--no-ui` 可隔离语音。包内包含视频程序时可选择：
+音频使用既有 `botstation_capture` / `botstation_playback`，SDK 为 16 kHz mono S16、20 ms、Cloud AEC。`--no-ui` 可隔离语音。
+
+输出音量范围为 0–100，首次启动默认 100，保持此前的输出响度。按键、终端和云端控制共用已保存音量；重启应用及手动配网后恢复。音量设置原子保存于私有的 `/userdata/mybot-rv1126b/volume.settings`（0600），保存失败时报告错误并保留原音量，不修改系统 mixer 或采集增益。请检查静音、递增/递减、退出重启、配网恢复和云端控制后的实际响度与回声消除效果。
+
+包内包含视频程序时可选择：
 
 ```sh
 RV1126B_VIDEO=1 ./run.sh

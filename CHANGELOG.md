@@ -2,6 +2,15 @@
 
 Changes to project-maintained code follow Semantic Versioning. Validation evidence is maintained in [one matrix](docs/validation/README.md); a release entry does not imply hardware acceptance.
 
+## 0.3.1 — Unreleased
+
+- Connect MyBot device-volume controls to a platform playback-gain adapter, applying output gain once without changing capture gain or system mixer settings.
+- Persist volume across application and SDK restarts, including manual AP Wi-Fi setup, in a private atomic settings file.
+- Preserve existing key, terminal and cloud controls with a 0–100 range and a default of 100, matching the previous output level.
+- Fall back to the default with a warning for invalid settings; report save failures and retain the last working gain.
+
+This persistent-volume candidate requires hardware audio and Cloud AEC regression testing.
+
 ## 0.3.0 — Unreleased
 
 - Add native AP Wi-Fi setup with an open `mybot-xxxx` hotspot, captive DNS and a bilingual mobile page at `192.168.4.1`.

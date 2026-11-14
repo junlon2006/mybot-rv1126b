@@ -8,6 +8,7 @@
 #include "mybot_platform/platform.h"
 #include "mybot_platform/display.h"
 #include "mybot_platform/wifi.h"
+#include "mybot_platform/volume.h"
 #include "mybot_ui/expression.h"
 
 #include <errno.h>
@@ -130,7 +131,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     int failed = 0;
-    bool sdk_started = false, ui_started = false, wifi_started = false;
+    bool sdk_started = false, ui_started = false, wifi_started = false, volume_started = false;
     char dhcp_script[PATH_MAX];
     if (!demo) {
         char executable[PATH_MAX], assets[PATH_MAX];
@@ -158,6 +159,12 @@ int main(int argc, char **argv) {
         fprintf(stdout, "mybot-rv1126b %s: id=%s, locale=%s, ptime=%d ms, video=%d\n",
                 RV1126B_VERSION, device_id, RV1126B_LOCALE, MYBOT_AUDIO_PTIME_MS,
                 MYBOT_ENABLE_VIDEO);
+        if (rv1126b_volume_prepare(getenv("MYBOT_KV_STORE_DIR")) < 0) {
+            fprintf(stderr, "Cannot restore private playback volume\n");
+            failed = 1;
+            goto cleanup;
+        }
+        volume_started = true;
     }
     if (platform.enable_ui) {
         if (rv1126b_ui_start(drm, rotation) < 0) {
@@ -295,6 +302,8 @@ cleanup:
         stop_sdk();
     if (wifi_started)
         rv1126b_wifi_stop();
+    if (volume_started)
+        rv1126b_volume_shutdown();
     if (ui_started && rv1126b_ui_stop() < 0)
         failed = 1;
     close(lock);

@@ -2,13 +2,15 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-A Linux application for running MyBot 1.3.0 on the **RV1126B TEST2 RK805B V10** board. It provides AP Wi-Fi setup, HTTPS pairing, bidirectional voice, persistent device identity, a pixel-glasses UI, and an optional V4L2/MPP JPEG uplink.
+A Linux application for running MyBot 1.3.0 on the **RV1126B TEST2 RK805B V10** board. It provides AP Wi-Fi setup, HTTPS pairing, bidirectional voice, persistent device identity and output volume, a pixel-glasses UI, and an optional V4L2/MPP JPEG uplink.
 
-The current source is the **0.3.0 AP Wi-Fi setup candidate**. The 0.1.0 voice/UI flow and 0.1.1 text-rendering improvement passed user testing on hardware. AP Wi-Fi setup and this candidate require device testing; optional video and extended stability testing remain incomplete. [Validation status](docs/validation/README.md) is the single source for results.
+The current source is the **0.3.1 persistent-volume candidate**. The 0.1.0 voice/UI flow and 0.1.1 text-rendering improvement passed user testing on hardware. AP Wi-Fi setup and persistent volume require device testing; optional video and extended stability testing remain incomplete. [Validation status](docs/validation/README.md) is the single source for results.
 
 ## Platform and behavior
 
 The recorded device baseline is AArch64 Buildroot 2024.02, Linux 6.1, glibc 2.41, ALSA, DRM/KMS and a physical 480×640 DSI screen. The UI renders at 640×480 with a default 270° rotation and statically linked LVGL 9.5. Audio uses 16 kHz mono signed-16 PCM, 20 ms frames and Cloud AEC.
+
+Output volume is saved in the private runtime directory and restored across application restarts and manual Wi-Fi setup. The existing keys, terminal commands and cloud volume controls use the same 0–100 scale; 100 preserves the previous output level. The platform applies playback gain once, without changing capture gain or system mixer settings. See [configuration](docs/user/configuration.zh-CN.md).
 
 The application preserves an existing usable network and the system's ALSA configuration. When offline, it tries saved Wi-Fi networks for up to 30 seconds, then starts an open `mybot-xxxx` hotspot. Connect a phone and open `http://192.168.4.1/` to select a 2.4 GHz network or enter a hidden SSID. The bilingual page supports saved networks, connection progress and retries. A short touch or Menu key starts/stops a conversation; hold either for 3 seconds to configure Wi-Fi, or use `w` in the foreground terminal. The application stops MyBot before manual Wi-Fi setup and restarts it after setup completes. [Wi-Fi setup guide](docs/user/wifi-provisioning.zh-CN.md).
 

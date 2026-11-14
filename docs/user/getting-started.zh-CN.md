@@ -1,6 +1,6 @@
 # 上手、升级与回退
 
-当前候选版为 0.3.0，目标为 RV1126B TEST2 RK805B V10 的现有 AArch64 Buildroot 系统。已验收版本和候选版的检查范围见[验证状态](../validation/README.md)。源码构建见[构建指南](build.zh-CN.md)。
+当前候选版为 0.3.1，目标为 RV1126B TEST2 RK805B V10 的现有 AArch64 Buildroot 系统。已验收版本和候选版的检查范围见[验证状态](../validation/README.md)。源码构建见[构建指南](build.zh-CN.md)。
 
 ## 设备条件
 
@@ -15,7 +15,7 @@
 在主机仓库根目录执行：
 
 ```sh
-adb push dist/mybot-rv1126b-0.3.0-aarch64.tar.gz /userdata/
+adb push dist/mybot-rv1126b-0.3.1-aarch64.tar.gz /userdata/
 adb shell
 ```
 
@@ -23,13 +23,13 @@ adb shell
 
 ```sh
 cd /userdata
-tar -xzf mybot-rv1126b-0.3.0-aarch64.tar.gz
-cd mybot-rv1126b-0.3.0-aarch64
+tar -xzf mybot-rv1126b-0.3.1-aarch64.tar.gz
+cd mybot-rv1126b-0.3.1-aarch64
 sha256sum -c SHA256SUMS
 ./run.sh --version
 ```
 
-校验应全部为 `OK`，版本为 0.3.0，语言和视频标志与所选程序一致。英文包、单配置包的名称不同，以实际交付文件名为准。包内包括程序、RTSA、提示音、来源/许可、构建 manifest、ABI 报告和校验清单。无需覆盖 `/usr/bin`、`/usr/lib`、ALSA 配置或开机脚本。
+校验应全部为 `OK`，版本为 0.3.1，语言和视频标志与所选程序一致。英文包、单配置包的名称不同，以实际交付文件名为准。包内包括程序、RTSA、提示音、来源/许可、构建 manifest、ABI 报告和校验清单。无需覆盖 `/usr/bin`、`/usr/lib`、ALSA 配置或开机脚本。
 
 如果原厂服务仍在运行，由操作者停止它：
 
@@ -53,6 +53,8 @@ UI 演示循环 23 种表情，不启动 SDK、网络、音频或摄像头。检
 本候选版还需按[配网设备验收步骤](wifi-provisioning.zh-CN.md#设备验证)检查首次配网、错误密码重试、保存后重启以及会话中切换配网。已有网络的正常启动应保持原连接，不能因启动应用而无故开启热点。
 
 如已有绑定，确认升级无需重新配对。重复开始/挂断，检查双向语音、状态与表情、退出后再次启动。需要隔离显示问题时用 `./run.sh --no-ui`。其余选项和身份规则见[配置](configuration.zh-CN.md)。
+
+输出音量首次使用默认为 100（此前的输出响度），调整后会保存在私有 KV 目录。请通过左右键、终端 `u/d` 和云端指令检查音量变化与静音，再退出重启及进入/退出 AP 配网，确认恢复保存音量。当前使用平台播放增益，不更改系统 mixer 或采集增益；实际响度和云端 AEC 效果仍需设备验证。
 
 ## 可选视频
 
